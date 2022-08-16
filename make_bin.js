@@ -94,7 +94,7 @@ class Node {
     }
 }
 
-function generateProject(origFilePath, json) {
+function generateProject(origFilePath, ratio, json) {
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
     // return;
 
@@ -378,12 +378,19 @@ function generateProject(origFilePath, json) {
     // generate meshes list
     if('meshes' in json) {
         for(const mesh of json.meshes) {
-            meshes[id.toString()] = {
+            meshObj = {
                 link: {
                     name: mesh.name,
                     file: origFilePath
                 }
+            };
+
+            if(ratio !== null) {
+                meshObj.simplify = true;
+                meshObj.simplifyTarget = ratio;
             }
+
+            meshes[id.toString()] = meshObj;
 
             id++;
         }
@@ -449,7 +456,7 @@ function generateProject(origFilePath, json) {
     console.log(`Generated project file "${outputProjectPath}"`);
 }
 
-async function loadGLTF(path) {
+async function loadGLTF(path, ratio) {
     console.log(`Making project from model file "${path}"...`);
 
     if(!fs.existsSync(path))
@@ -457,10 +464,10 @@ async function loadGLTF(path) {
 
     const lowPath = path.toLowerCase();
     if(lowPath.endsWith('.gltf'))
-        generateProject(path, fs.readJsonSync(path));
+        generateProject(path, ratio, fs.readJsonSync(path));
     else if(lowPath.endsWith('.glb')) {
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
-        generateProject(path, results.gltf);
+        generateProject(path, ratio, results.gltf);
     }
     else
         throw new Error('Unknown file extension. Must be either ".gltf" or ".glb"');
@@ -481,6 +488,8 @@ function loadDefaultGLTF() {
 if(process.argv.length === 2)
     loadDefaultGLTF();
 else if(process.argv.length === 3)
-    loadGLTF(process.argv[2]);
+    loadGLTF(process.argv[2], null);
+else if(process.argv.length === 4)
+    loadGLTF(process.argv[2], Number(process.argv[3]));
 else
-    throw new Error(`Invalid usage. Usage: ${process.argv[0]} <model_file>`);
+    throw new Error(`Invalid usage.\nUsage: ${process.argv[0]} [model_file] [simplification_ratio]\nOptional arguments are denoted by square brackets.\nsimplification_ratio is 1 by default. When it is a value not equal to 1, then mesh simplification will be applied.`);
