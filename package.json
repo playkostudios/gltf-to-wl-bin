@@ -1,0 +1,15 @@
+{
+  "name": "bin-models-test",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "make_bin": "node make_bin.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fs-extra": "^10.1.0",
+    "gltf-pipeline": "^3.0.5"
+  }
+}

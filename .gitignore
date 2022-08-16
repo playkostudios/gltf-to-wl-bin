@@ -1,0 +1,9 @@
+*.glb
+*.gltf
+*.sublime-project
+*.sublime-workspace
+imgui.ini
+*.wlp
+node_modules
+deploy
+cache
