@@ -1,11 +1,25 @@
 {
-  "name": "bin-models-test",
+  "name": "gltf-to-wl-bin",
   "version": "1.0.0",
   "description": "Convert GLTF/GLB files to Wonderland Engine bin files",
   "main": "gltf-to-wl-bin.js",
   "bin": "gltf-to-wl-bin",
-  "author": "Playko",
+  "contributors": [
+    {
+      "name": "Playko",
+      "url": "https://www.playko.com/"
+    },
+    {
+      "name": "rafern",
+      "email": "rafael@playko.com"
+    }
+  ],
   "license": "UNLICENSED",
+  "url": "https://github.com/playkostudios/gltf-to-wl-bin",
+  "bugs": {
+    "url": "https://github.com/playkostudios/gltf-to-wl-bin/issues",
+    "email": "rafael@playko.com"
+  },
   "dependencies": {
     "fs-extra": "^10.1.0",
     "gltf-pipeline": "^3.0.5"
