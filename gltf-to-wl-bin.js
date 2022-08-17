@@ -478,7 +478,7 @@ async function loadGLTF(path, ratio) {
         return generateProject(path, ratio, results.gltf);
     }
     else
-        throw new UserError('Unknown file extension. Must be either ".gltf" or ".glb"');
+        throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
 }
 
 class UserError extends Error {
@@ -542,6 +542,8 @@ function removeTmpDir() {
     }
 }
 
+let childProc = null;
+
 function compileModel(projectPath, wonderlandPath, wonderlandArgs) {
     return new Promise((resolve, reject) => {
         console.info('Compiling to bin model...');
@@ -550,17 +552,18 @@ function compileModel(projectPath, wonderlandPath, wonderlandArgs) {
 
         console.info('Spawning process:', wonderlandPath, ...args);
 
-        const child = spawn(wonderlandPath, args, {
+        childProc = spawn(wonderlandPath, args, {
             cwd: tmpDir,
             windowsHide: true
         });
 
         let done = false;
-        child.on('exit', (code, signal) => {
+        childProc.on('exit', (code, signal) => {
             if(done)
                 return;
 
             done = true;
+            childProc = null;
 
             if(code === 0)
                 resolve();
@@ -568,18 +571,36 @@ function compileModel(projectPath, wonderlandPath, wonderlandArgs) {
                 reject(new UserError(`bin compilation failed; Wonderland Engine editor exited with code ${code} and signal ${signal}.`));
         });
 
-        child.on('error', (err) => {
+        childProc.on('error', (err) => {
             if(done)
                 return;
 
             done = true;
+            childProc = null;
 
             reject(err);
         });
 
-        child.stderr.pipe(process.stdout);
-        child.stderr.pipe(process.stderr);
+        childProc.stderr.pipe(process.stdout);
+        childProc.stderr.pipe(process.stderr);
     });
+}
+
+function addInputModel(models, modelPath, ratio) {
+    const modelFileName = path.basename(modelPath);
+    const modelExt = path.extname(modelFileName);
+    const extLen = modelExt.length;
+    if(extLen === 0 || (modelExt !== '.gltf' && modelExt !== '.glb'))
+        throw new UserError(`Unknown file extension for path "${modelPath}". Must be either ".gltf" or ".glb"`);
+
+    const outputName = modelFileName.substring(0, modelFileName.length - extLen) + '.bin';
+
+    for(const { modelPath: oModelPath, ratio: _oRatio, outputName: oName } of models) {
+        if(oName === outputName)
+            throw new UsageError(`Multiple model files have the same name (excluding the extension): "${oModelPath}" and "${modelPath}". Please rename files that share this name.`);
+    }
+
+    models.push({ modelPath, ratio, outputName });
 }
 
 async function main() {
@@ -669,22 +690,23 @@ async function main() {
                     modelPath = parts[1];
                 }
 
-                const modelFileName = path.basename(modelPath);
-                const modelExt = path.extname(modelFileName);
+                if(!fs.existsSync(modelPath))
+                    throw new UserError(`Input model path does not exist: "${modelPath}".`);
 
-                let outputName;
-                const extLen = modelExt.length;
-                if(extLen > 0)
-                    outputName = modelFileName.substring(0, modelFileName.length - extLen) + '.bin';
-                else
-                    outputName = modelFileName + '.bin';
+                const modelStat = fs.lstatSync(modelPath);
+                if(modelStat.isFile())
+                    addInputModel(models, modelPath, ratio);
+                else if(modelStat.isDirectory()) {
+                    for(const dirFileName of fs.readdirSync(modelPath)) {
+                        const dirFilePath = path.join(modelPath, dirFileName);
+                        const dirFileStat = fs.lstatSync(dirFilePath);
 
-                for(const { modelPath: oModelPath, ratio: _oRatio, outputName: oName } of models) {
-                    if(oName === outputName)
-                        throw new UsageError(`Multiple model files have the same name (excluding the extension): "${oModelPath}" and "${modelPath}". Please rename files that share this name.`);
+                        if(dirFileStat.isFile() && (dirFileName.endsWith('.gltf') || dirFileName.endsWith('.glb')))
+                            addInputModel(models, dirFilePath, ratio);
+                    }
                 }
-
-                models.push({ modelPath, ratio, outputName });
+                else
+                    throw new UserError(`Unexpected input model path type for "${modelPath}": must be either a file or a folder.`);
             }
             else
                 wonderlandArgs.push(arg);
@@ -749,5 +771,16 @@ async function main() {
         removeTmpDir();
     }
 }
+
+process.on('SIGINT', () => {
+    console.error('Interrupted! Cleaning up temporary directory and stopping child process...');
+
+    if(childProc !== null)
+        childProc.kill();
+
+    removeTmpDir();
+
+    process.exit(1);
+});
 
 exports.gltfToWlBin = main;
