@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Convert GLTF/GLB files to Wonderland Engine bin files",
   "main": "gltf-to-wl-bin.js",
-  "scripts": {
-    "gltf-to-wl-bin": "node gltf-to-wl-bin.js"
+  "bin": {
+    "gltf-to-wl-bin": "gltf-to-wl-bin-wrapper"
   },
   "author": "Playko",
   "license": "UNLICENSED",

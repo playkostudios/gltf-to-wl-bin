@@ -1,5 +1,5 @@
-const gltfPipeline = require('gltf-pipeline');
 const { spawn } = require('node:child_process');
+const gltfPipeline = require('gltf-pipeline');
 const fs = require('fs-extra');
 const os = require('node:os');
 const path = require('path');
@@ -508,7 +508,7 @@ Example usage:
 $ ${progName} --output-folder static/bins/ -- models/
 - Compiles all models in the "models" folder and puts the compiled bin models in the "static/bins" folder.
 $ ${progName} --output-folder static/bins/ --default-simplification 0.5 -- models/player.glb models/football.glb 1:models/low_poly_tree.glb
-- Compiles a selection of models in the "models" folder with 50% mesh simplification, except a low-poly tree model, which has no mesh simplification. Outputs to a "static/bins" folder.
+- Compiles a selection of models in the "models" folder with a 0.5 mesh simplification target, except the low-poly tree model, which has no mesh simplification. Outputs to a "static/bins" folder.
 
 Available arguments:
 - --default-simplification <default_simplification_target>: Denotes the default simplification_target value applied to each model file that has no simplification_target set. 1 by default.
@@ -750,4 +750,4 @@ async function main() {
     }
 }
 
-main();
+exports.gltfToWlBin = main;
