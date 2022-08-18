@@ -768,7 +768,9 @@ async function main() {
     catch(e) {
         if(e instanceof UserError) {
             console.error(`${e.message}\n`);
-            printHelp();
+
+            if(e instanceof UsageError)
+                printHelp();
         }
         else
             throw e;
