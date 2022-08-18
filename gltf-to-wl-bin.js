@@ -4,6 +4,8 @@ const fs = require('fs-extra');
 const os = require('node:os');
 const path = require('path');
 
+const defaultWLBin = 'WonderlandEditor';
+const defaultWindowsWLPath = `C:\\Program Files\\Wonderland\\WonderlandEngine\\bin\\${defaultWLBin}.exe`;
 const wlProjectName = 'gltf-to-wl-bin';
 let tmpDir = null;
 
@@ -513,7 +515,7 @@ $ ${progName} --output-folder static/bins/ --default-simplification 0.5 -- model
 Available arguments:
 - --default-simplification <default_simplification_target>: Denotes the default simplification_target value applied to each model file that has no simplification_target set. 1 by default.
 - --output-folder <output_folder_path>: The folder where all the generated .bin files will be put. Uses the current directory by default.
-- --wonderland-path <wonderland_editor_executable_path>: The path to the Wonderland Engine editor (a simple executable name instead of a path works too). If not specified, then "WonderlandEditor" will be used as the executable.
+- --wonderland-path <wonderland_editor_executable_path>: The path to the Wonderland Engine editor (a simple executable name instead of a path works too). If not specified, then "${defaultWindowsWLPath}" will be used as the executable for Windows, and "${defaultWLBin}" will be used for any other OS.
 
 Available arguments after first mark (--):
 - <model_file> or <simplification_target>:<model_file>:
@@ -718,8 +720,12 @@ async function main() {
         if(outputFolder === null)
             outputFolder = process.cwd();
 
-        if(wonderlandPath === null)
-            wonderlandPath = 'WonderlandEditor';
+        if(wonderlandPath === null) {
+            if(process.platform === 'win32')
+                wonderlandPath = defaultWindowsWLPath;
+            else
+                wonderlandPath = defaultWLBin;
+        }
 
         if(mark === 0 && models.length === 0) {
             const cwd = process.cwd();
