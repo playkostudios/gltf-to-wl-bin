@@ -99,17 +99,75 @@ class Node {
     }
 }
 
-function generateProject(origFilePath, ratio, json) {
+function generateProject(origFilePath, symlinkRelPath, ratio, json) {
     console.info(`Generating project from model file "${origFilePath}" with ${ratio === 1 ? 'no' : ratio} mesh simplification...`);
 
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
     // return;
 
     const objects = {};
-    const meshes = {};
-    const textures = {};
-    const images = {};
-    const materials = {};
+    const meshes = {
+        "p0": {
+            "link": {
+                "name": "PrimitivePlane",
+                "file": "default"
+            }
+        },
+        "p1": {
+            "link": {
+                "name": "PrimitiveCube",
+                "file": "default"
+            }
+        },
+        "p2": {
+            "link": {
+                "name": "PrimitiveSphere",
+                "file": "default"
+            }
+        },
+        "p3": {
+            "link": {
+                "name": "PrimitiveCone",
+                "file": "default"
+            }
+        },
+        "p4": {
+            "link": {
+                "name": "PrimitiveCylinder",
+                "file": "default"
+            }
+        },
+        "p5": {
+            "link": {
+                "name": "PrimitiveCircle",
+                "file": "default"
+            }
+        },
+    };
+    const textures = {
+        "t0": {
+            "link": {
+                "name": "DefaultTexture",
+                "file": "default"
+            }
+        }
+    };
+    const images = {
+        "f0": {
+            "link": {
+                "name": "DefaultImage",
+                "file": "default"
+            }
+        }
+    };
+    const materials = {
+        "DefaultFontMaterial": {
+            "link": {
+                "name": "DefaultFontMaterial",
+                "file": "default"
+            }
+        }
+    };
     const animations = {};
     const skins = {};
     let id = 28;
@@ -295,7 +353,42 @@ function generateProject(origFilePath, ratio, json) {
                 packageForStreaming: true
             }
         },
-        files: [origFilePath]
+        files: [symlinkRelPath]
+    }
+
+    // generate materials list
+    if('materials' in json) {
+        for(const material of json.materials) {
+            materials[id.toString()] = {
+                link: {
+                    name: material.name,
+                    file: symlinkRelPath
+                }
+            }
+
+            id++;
+        }
+    }
+
+    // generate meshes list
+    if('meshes' in json) {
+        for(const mesh of json.meshes) {
+            meshObj = {
+                link: {
+                    name: mesh.name,
+                    file: symlinkRelPath
+                }
+            };
+
+            if(ratio !== 1) {
+                meshObj.simplify = true;
+                meshObj.simplifyTarget = ratio;
+            }
+
+            meshes[id.toString()] = meshObj;
+
+            id++;
+        }
     }
 
     // generate skins
@@ -309,7 +402,7 @@ function generateProject(origFilePath, ratio, json) {
             skins[id.toString()] = {
                 link: {
                     name: skin.name,
-                    file: origFilePath
+                    file: symlinkRelPath
                 },
                 joints: jointsArray
             };
@@ -375,46 +468,11 @@ function generateProject(origFilePath, ratio, json) {
             node.id = id;
 
             if(node.skin !== null)
-                skinsJoints.get(node.skin).push(id);
+                skinsJoints.get(node.skin).push(id.toString());
 
-            objects[id.toString()] = node.toJson(origFilePath);
+            objects[id.toString()] = node.toJson(symlinkRelPath);
             id++;
         });
-    }
-
-    // generate meshes list
-    if('meshes' in json) {
-        for(const mesh of json.meshes) {
-            meshObj = {
-                link: {
-                    name: mesh.name,
-                    file: origFilePath
-                }
-            };
-
-            if(ratio !== 1) {
-                meshObj.simplify = true;
-                meshObj.simplifyTarget = ratio;
-            }
-
-            meshes[id.toString()] = meshObj;
-
-            id++;
-        }
-    }
-
-    // generate materials list
-    if('materials' in json) {
-        for(const material of json.materials) {
-            materials[id.toString()] = {
-                link: {
-                    name: material.name,
-                    file: origFilePath
-                }
-            }
-
-            id++;
-        }
     }
 
     // generate animations list
@@ -423,7 +481,7 @@ function generateProject(origFilePath, ratio, json) {
             animations[id.toString()] = {
                 link: {
                     name: animation.name,
-                    file: origFilePath
+                    file: symlinkRelPath
                 }
             }
 
@@ -437,7 +495,7 @@ function generateProject(origFilePath, ratio, json) {
             images[id.toString()] = {
                 link: {
                     name: image.name,
-                    file: origFilePath
+                    file: symlinkRelPath
                 }
             }
 
@@ -451,7 +509,7 @@ function generateProject(origFilePath, ratio, json) {
             textures[id.toString()] = {
                 link: {
                     name: `texture_${texture.source}`,
-                    file: origFilePath
+                    file: symlinkRelPath
                 }
             }
 
@@ -466,18 +524,18 @@ function generateProject(origFilePath, ratio, json) {
     return projectPath;
 }
 
-async function loadGLTF(path, ratio) {
+async function loadGLTF(path, symlinkRelPath, ratio) {
     if(!fs.existsSync(path))
         throw new UserError(`File not found: "${path}".`);
 
     const lowPath = path.toLowerCase();
     if(lowPath.endsWith('.gltf'))
-        return generateProject(path, ratio, fs.readJsonSync(path));
+        return generateProject(path, symlinkRelPath, ratio, fs.readJsonSync(path));
     else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
-        return generateProject(path, ratio, results.gltf);
+        return generateProject(path, symlinkRelPath, ratio, results.gltf);
     }
     else
         throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
@@ -602,7 +660,7 @@ function addInputModel(models, modelPath, ratio) {
             throw new UsageError(`Multiple model files have the same name (excluding the extension): "${oModelPath}" and "${modelPath}". Please rename files that share this name.`);
     }
 
-    models.push({ modelPath, ratio, outputName });
+    models.push({ modelPath, modelFileName, ratio, outputName });
 }
 
 async function main() {
@@ -733,9 +791,9 @@ async function main() {
             const defaultGLBPath = path.join(cwd, 'model.glb');
 
             if(fs.existsSync(defaultGLTFPath) && fs.lstatSync(defaultGLTFPath).isFile())
-                models.push(defaultGLTFPath);
+                addInputModel(models, defaultGLTFPath, defaultSimplificationRatio);
             else if(fs.existsSync(defaultGLBPath) && fs.lstatSync(defaultGLBPath).isFile())
-                models.push(defaultGLBPath);
+                addInputModel(models, defaultGLBPath, defaultSimplificationRatio);
             else
                 throw new UserError('No model available in current working directory. Must be either in "model.gltf" or "model.glb".');
         }
@@ -743,14 +801,19 @@ async function main() {
         if(models.length === 0)
             throw new UserError('No model files specified.');
 
-        for(const {modelPath, ratio, outputName} of models) {
+        for(const {modelPath, modelFileName, ratio, outputName} of models) {
             // make temporary folder for project
             tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), wlProjectName));
 
+            // make symlink in temporary folder for model file; wonderland
+            // engine doesn't seem to support absolute paths anymore
+            const fullModelPath = path.resolve(modelPath);
+            const symlinkPath = path.join(tmpDir, modelFileName);
+            fs.symlinkSync(fullModelPath, symlinkPath);
+
             // generate project for model
             const actualRatio = ratio === null ? defaultSimplificationRatio : ratio;
-            const fullModelPath = path.resolve(modelPath);
-            const projectPath = await loadGLTF(fullModelPath, actualRatio);
+            const projectPath = await loadGLTF(fullModelPath, modelFileName, actualRatio);
 
             // compile model
             await compileModel(projectPath, wonderlandPath, wonderlandArgs);
