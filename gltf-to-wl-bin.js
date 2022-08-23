@@ -99,7 +99,7 @@ class Node {
     }
 }
 
-function generateProject(origFilePath, symlinkRelPath, ratio, json) {
+function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio, json) {
     console.info(`Generating project from model file "${origFilePath}" with ${ratio === 1 ? 'no' : ratio} mesh simplification...`);
 
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
@@ -517,25 +517,25 @@ function generateProject(origFilePath, symlinkRelPath, ratio, json) {
         }
     }
 
-    const projectPath = path.join(tmpDir, `${wlProjectName}.wlp`);
+    const projectPath = path.join(outDir, `${outputName}.wlp`);
     fs.writeFileSync(projectPath, JSON.stringify(project, null, 4));
     console.info(`Generated project file "${projectPath}"`);
 
     return projectPath;
 }
 
-async function loadGLTF(path, symlinkRelPath, ratio) {
+async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio) {
     if(!fs.existsSync(path))
         throw new UserError(`File not found: "${path}".`);
 
     const lowPath = path.toLowerCase();
     if(lowPath.endsWith('.gltf'))
-        return generateProject(path, symlinkRelPath, ratio, fs.readJsonSync(path));
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, fs.readJsonSync(path));
     else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
-        return generateProject(path, symlinkRelPath, ratio, results.gltf);
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, results.gltf);
     }
     else
         throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
@@ -574,6 +574,7 @@ Available arguments:
 - --default-simplification <default_simplification_target>: Denotes the default simplification_target value applied to each model file that has no simplification_target set. 1 by default.
 - --output-folder <output_folder_path>: The folder where all the generated .bin files will be put. Uses the current directory by default.
 - --wonderland-path <wonderland_editor_executable_path>: The path to the Wonderland Engine editor (a simple executable name instead of a path works too). If not specified, then "${defaultWindowsWLPath}" will be used as the executable for Windows, and "${defaultWLBin}" will be used for any other OS.
+- --projects-only: Only generate project files instead of converting to bin files.
 
 Available arguments after first mark (--):
 - <model_file> or <simplification_target>:<model_file>:
@@ -604,7 +605,7 @@ function removeTmpDir() {
 
 let childProc = null;
 
-function compileModel(projectPath, wonderlandPath, wonderlandArgs) {
+function compileModel(projectPath, workingDir, wonderlandPath, wonderlandArgs) {
     return new Promise((resolve, reject) => {
         console.info('Compiling to bin model...');
 
@@ -613,7 +614,7 @@ function compileModel(projectPath, wonderlandPath, wonderlandArgs) {
         console.info('Spawning process:', wonderlandPath, ...args);
 
         childProc = spawn(wonderlandPath, args, {
-            cwd: tmpDir,
+            cwd: workingDir,
             windowsHide: true
         });
 
@@ -672,6 +673,7 @@ async function main() {
         let wonderlandArgs = [];
         let mark = 0;
         let wonderlandPath = null;
+        let projectsOnly = false;
 
         for(let i = 2; i < process.argv.length; i++) {
             const arg = process.argv[i];
@@ -721,6 +723,9 @@ async function main() {
                             throw new UsageError('Can only have one Wonderland Engine editor path.');
 
                         wonderlandPath = process.argv[i];
+                        break;
+                    case '--projects-only':
+                        projectsOnly = true;
                         break;
                     case '--help':
                     case '-h':
@@ -802,30 +807,38 @@ async function main() {
             throw new UserError('No model files specified.');
 
         for(const {modelPath, modelFileName, ratio, outputName} of models) {
-            // make temporary folder for project
-            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), wlProjectName));
+            let outDir;
+            if(projectsOnly)
+                outDir = outputFolder;
+            else {
+                // make temporary folder for project
+                tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), wlProjectName));
+                outDir = tmpDir;
+            }
 
             // make symlink in temporary folder for model file; wonderland
             // engine doesn't seem to support absolute paths anymore
             const fullModelPath = path.resolve(modelPath);
-            const symlinkPath = path.join(tmpDir, modelFileName);
+            const symlinkPath = path.join(outDir, modelFileName);
             fs.symlinkSync(fullModelPath, symlinkPath);
 
             // generate project for model
             const actualRatio = ratio === null ? defaultSimplificationRatio : ratio;
-            const projectPath = await loadGLTF(fullModelPath, modelFileName, actualRatio);
+            const projectPath = await loadGLTF(fullModelPath, modelFileName, outputName, outDir, actualRatio);
 
-            // compile model
-            await compileModel(projectPath, wonderlandPath, wonderlandArgs);
+            if(!projectsOnly) {
+                // compile model
+                await compileModel(projectPath, outDir, wonderlandPath, wonderlandArgs);
 
-            // move compiled model to destination
-            console.info('Done compiling. Moving to output folder...')
-            const src = path.join(tmpDir, 'deploy', `${wlProjectName}.bin`);
-            const dst = path.join(outputFolder, outputName);
-            fs.moveSync(src, dst, { overwrite: true });
+                // move compiled model to destination
+                console.info('Done compiling. Moving to output folder...')
+                const src = path.join(outDir, 'deploy', `${wlProjectName}.bin`);
+                const dst = path.join(outputFolder, outputName);
+                fs.moveSync(src, dst, { overwrite: true });
 
-            // remove temporary folder
-            removeTmpDir();
+                // remove temporary folder
+                removeTmpDir();
+            }
         }
     }
     catch(e) {
