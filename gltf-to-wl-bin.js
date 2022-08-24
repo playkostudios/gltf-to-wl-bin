@@ -99,78 +99,19 @@ class Node {
     }
 }
 
-function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio, json) {
+function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, json) {
     console.info(`Generating project from model file "${origFilePath}" with ${ratio === 1 ? 'no' : ratio} mesh simplification...`);
 
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
-    // return;
 
     const objects = {};
-    const meshes = {
-        "p0": {
-            "link": {
-                "name": "PrimitivePlane",
-                "file": "default"
-            }
-        },
-        "p1": {
-            "link": {
-                "name": "PrimitiveCube",
-                "file": "default"
-            }
-        },
-        "p2": {
-            "link": {
-                "name": "PrimitiveSphere",
-                "file": "default"
-            }
-        },
-        "p3": {
-            "link": {
-                "name": "PrimitiveCone",
-                "file": "default"
-            }
-        },
-        "p4": {
-            "link": {
-                "name": "PrimitiveCylinder",
-                "file": "default"
-            }
-        },
-        "p5": {
-            "link": {
-                "name": "PrimitiveCircle",
-                "file": "default"
-            }
-        },
-    };
-    const textures = {
-        "t0": {
-            "link": {
-                "name": "DefaultTexture",
-                "file": "default"
-            }
-        }
-    };
-    const images = {
-        "f0": {
-            "link": {
-                "name": "DefaultImage",
-                "file": "default"
-            }
-        }
-    };
-    const materials = {
-        "DefaultFontMaterial": {
-            "link": {
-                "name": "DefaultFontMaterial",
-                "file": "default"
-            }
-        }
-    };
+    const meshes = { ...templateProject.meshes };
+    const textures = { ...templateProject.textures };
+    const images = { ...templateProject.images };
+    const materials = { ...templateProject.materials };
     const animations = {};
     const skins = {};
-    let id = 28;
+    let id = curID;
 
     const project = {
         objects,
@@ -178,174 +119,10 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
         textures,
         images,
         materials,
-        shaders: {
-            "1": {
-                "link": {
-                    "name": "Depth.frag",
-                    "file": "default"
-                }
-            },
-            "3": {
-                "link": {
-                    "name": "DistanceFieldVector.frag",
-                    "file": "default"
-                }
-            },
-            "5": {
-                "link": {
-                    "name": "Dynamic.vert",
-                    "file": "default"
-                }
-            },
-            "6": {
-                "link": {
-                    "name": "Flat.frag",
-                    "file": "default"
-                }
-            },
-            "9": {
-                "link": {
-                    "name": "MeshVisualizer.frag",
-                    "file": "default"
-                }
-            },
-            "11": {
-                "link": {
-                    "name": "Phong.frag",
-                    "file": "default"
-                }
-            },
-            "14": {
-                "link": {
-                    "name": "Physical.frag",
-                    "file": "default"
-                }
-            },
-            "17": {
-                "link": {
-                    "name": "Skinning.vert",
-                    "file": "default"
-                }
-            },
-            "18": {
-                "link": {
-                    "name": "Sky.frag",
-                    "file": "default"
-                }
-            },
-            "19": {
-                "link": {
-                    "name": "Sky.vert",
-                    "file": "default"
-                }
-            },
-            "20": {
-                "link": {
-                    "name": "Text.frag",
-                    "file": "default"
-                }
-            },
-            "22": {
-                "link": {
-                    "name": "Text.vert",
-                    "file": "default"
-                }
-            },
-            "23": {
-                "link": {
-                    "name": "TileFeedback.frag",
-                    "file": "default"
-                }
-            },
-            "24": {
-                "link": {
-                    "name": "Particle.frag",
-                    "file": "default"
-                }
-            }
-        },
+        shaders: templateProject.shaders,
         animations,
         skins,
-        pipelines: {
-            "2": {
-                "link": {
-                    "name": "Depth",
-                    "file": "default"
-                }
-            },
-            "4": {
-                "link": {
-                    "name": "DistanceFieldVector",
-                    "file": "default"
-                }
-            },
-            "7": {
-                "link": {
-                    "name": "Flat Opaque",
-                    "file": "default"
-                }
-            },
-            "8": {
-                "link": {
-                    "name": "Flat Opaque Textured",
-                    "file": "default"
-                }
-            },
-            "10": {
-                "link": {
-                    "name": "MeshVisualizer",
-                    "file": "default"
-                }
-            },
-            "12": {
-                "link": {
-                    "name": "Phong Opaque",
-                    "file": "default"
-                }
-            },
-            "13": {
-                "link": {
-                    "name": "Phong Opaque Textured",
-                    "file": "default"
-                }
-            },
-            "15": {
-                "link": {
-                    "name": "Physical Opaque",
-                    "file": "default"
-                }
-            },
-            "16": {
-                "link": {
-                    "name": "Physical Opaque Textured",
-                    "file": "default"
-                }
-            },
-            "21": {
-                "link": {
-                    "name": "Text",
-                    "file": "default"
-                }
-            },
-            "25": {
-                "link": {
-                    "name": "Foliage",
-                    "file": "default"
-                }
-            },
-            "26": {
-                "link": {
-                    "name": "Particle",
-                    "file": "default"
-                }
-            },
-            "27": {
-                "link": {
-                    "name": "Sky",
-                    "file": "default"
-                }
-            }
-        },
+        pipelines: templateProject.pipelines,
         settings: {
             project: {
                 name: wlProjectName,
@@ -521,21 +298,21 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
     fs.writeFileSync(projectPath, JSON.stringify(project, null, 4));
     console.info(`Generated project file "${projectPath}"`);
 
-    return projectPath;
+    return [projectPath, id];
 }
 
-async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio) {
+async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject) {
     if(!fs.existsSync(path))
         throw new UserError(`File not found: "${path}".`);
 
     const lowPath = path.toLowerCase();
     if(lowPath.endsWith('.gltf'))
-        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, fs.readJsonSync(path));
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, fs.readJsonSync(path));
     else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
-        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, results.gltf);
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, results.gltf);
     }
     else
         throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
@@ -575,6 +352,8 @@ Available arguments:
 - --output-folder <output_folder_path>: The folder where all the generated .bin files will be put. Uses the current directory by default.
 - --wonderland-path <wonderland_editor_executable_path>: The path to the Wonderland Engine editor (a simple executable name instead of a path works too). If not specified, then "${defaultWindowsWLPath}" will be used as the executable for Windows, and "${defaultWLBin}" will be used for any other OS.
 - --projects-only: Only generate project files instead of converting to bin files.
+- --template-project-path: A path to an existing project file. The default shader, texture, material, etc... IDs from this project will be used for the generated projects.
+- --reserve-ids: The minimum IDs to use for the generated project file. Even if not set, resource IDs for generated projects will never intersect. If a template project is given, then the maximum resource ID will be added to this value. If this value is not set, you may need to re-generate the bin files after adding a new resource or object to the scene of the template project.
 
 Available arguments after first mark (--):
 - <model_file> or <simplification_target>:<model_file>:
@@ -664,6 +443,101 @@ function addInputModel(models, modelPath, ratio) {
     models.push({ modelPath, modelFileName, ratio, outputName });
 }
 
+function getMaxId(newIDStr, maxID) {
+    const idNum = Number(newIDStr);
+
+    if(isNaN(idNum) || idNum <= maxID)
+        return maxID;
+    else
+        return idNum;
+}
+
+function maybeAddDefaultObj(outList, idStr, obj) {
+    if(typeof obj.link === 'object' && obj.link.file === 'default')
+        outList[idStr] = obj;
+}
+
+function parseTemplateProject(projectPath) {
+    // load project json
+    const content = fs.readFileSync(projectPath);
+    const json = JSON.parse(content);
+
+    // grab default IDs and maximum ID
+    let maxID = 0;
+    const meshes = {};
+    const textures = {};
+    const images = {};
+    const materials = {};
+    const shaders = {};
+    const pipelines = {};
+
+    if('objects' in json) {
+        for(const [id, _obj] of Object.entries(json.objects))
+            maxID = getMaxId(id, maxID);
+    }
+
+    if('meshes' in json) {
+        for(const [id, obj] of Object.entries(json.meshes)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(meshes, id, obj);
+        }
+    }
+
+    if('textures' in json) {
+        for(const [id, obj] of Object.entries(json.textures)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(textures, id, obj);
+        }
+    }
+
+    if('images' in json) {
+        for(const [id, obj] of Object.entries(json.images)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(images, id, obj);
+        }
+    }
+
+    if('materials' in json) {
+        for(const [id, obj] of Object.entries(json.materials)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(materials, id, obj);
+        }
+    }
+
+    if('shaders' in json) {
+        for(const [id, obj] of Object.entries(json.shaders)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(shaders, id, obj);
+        }
+    }
+
+    if('animations' in json) {
+        for(const [id, _obj] of Object.entries(json.animations))
+            maxID = getMaxId(id, id, maxID);
+    }
+
+    if('skins' in json) {
+        for(const [id, _obj] of Object.entries(json.skins))
+            maxID = getMaxId(id, id, maxID);
+    }
+
+    if('pipelines' in json) {
+        for(const [id, obj] of Object.entries(json.pipelines)) {
+            maxID = getMaxId(id, maxID);
+            maybeAddDefaultObj(pipelines, id, obj);
+        }
+    }
+
+    return [{
+        meshes,
+        textures,
+        images,
+        materials,
+        shaders,
+        pipelines
+    }, maxID];
+}
+
 async function main() {
     try {
         // parse arguments
@@ -674,6 +548,9 @@ async function main() {
         let mark = 0;
         let wonderlandPath = null;
         let projectsOnly = false;
+        let templateProject = null;
+        let templateMinID = 0;
+        let reservedIDs = null;
 
         for(let i = 2; i < process.argv.length; i++) {
             const arg = process.argv[i];
@@ -726,6 +603,30 @@ async function main() {
                         break;
                     case '--projects-only':
                         projectsOnly = true;
+                        break;
+                    case '--template-project-path':
+                        i++;
+                        if(i >= process.argv.length)
+                            throw new UsageError('Expected path after --template-project-path argument, found nothing.');
+
+                        if(templateProject !== null)
+                            throw new UsageError('Can only have one template project.');
+
+                        [templateProject, templateMinID] = parseTemplateProject(process.argv[i]);
+                        break;
+                    case '--reserve-ids':
+                        i++;
+                        if(i >= process.argv.length)
+                            throw new UsageError('Expected a number after --reserve-ids argument, found nothing.');
+
+                        if(reservedIDs !== null)
+                            throw new UsageError('Can only have one argument for reserved IDs.');
+
+                        reservedIDs = Number(process.argv[i]);
+
+                        if(isNaN(reservedIDs) || reservedIDs < 0)
+                            throw new UsageError('Reserved IDs count must be a valid positive number.');
+
                         break;
                     case '--help':
                     case '-h':
@@ -790,6 +691,245 @@ async function main() {
                 wonderlandPath = defaultWLBin;
         }
 
+        if(reservedIDs === null)
+            reservedIDs = 0;
+
+        if(templateProject === null) {
+            templateProject = {
+                meshes: {
+                    "p0": {
+                        "link": {
+                            "name": "PrimitivePlane",
+                            "file": "default"
+                        }
+                    },
+                    "p1": {
+                        "link": {
+                            "name": "PrimitiveCube",
+                            "file": "default"
+                        }
+                    },
+                    "p2": {
+                        "link": {
+                            "name": "PrimitiveSphere",
+                            "file": "default"
+                        }
+                    },
+                    "p3": {
+                        "link": {
+                            "name": "PrimitiveCone",
+                            "file": "default"
+                        }
+                    },
+                    "p4": {
+                        "link": {
+                            "name": "PrimitiveCylinder",
+                            "file": "default"
+                        }
+                    },
+                    "p5": {
+                        "link": {
+                            "name": "PrimitiveCircle",
+                            "file": "default"
+                        }
+                    },
+                },
+                textures: {
+                    "t0": {
+                        "link": {
+                            "name": "DefaultTexture",
+                            "file": "default"
+                        }
+                    }
+                },
+                images: {
+                    "f0": {
+                        "link": {
+                            "name": "DefaultImage",
+                            "file": "default"
+                        }
+                    }
+                },
+                materials: {
+                    "DefaultFontMaterial": {
+                        "link": {
+                            "name": "DefaultFontMaterial",
+                            "file": "default"
+                        }
+                    }
+                },
+                shaders: {
+                    "1": {
+                        "link": {
+                            "name": "Depth.frag",
+                            "file": "default"
+                        }
+                    },
+                    "3": {
+                        "link": {
+                            "name": "DistanceFieldVector.frag",
+                            "file": "default"
+                        }
+                    },
+                    "5": {
+                        "link": {
+                            "name": "Dynamic.vert",
+                            "file": "default"
+                        }
+                    },
+                    "6": {
+                        "link": {
+                            "name": "Flat.frag",
+                            "file": "default"
+                        }
+                    },
+                    "9": {
+                        "link": {
+                            "name": "MeshVisualizer.frag",
+                            "file": "default"
+                        }
+                    },
+                    "11": {
+                        "link": {
+                            "name": "Phong.frag",
+                            "file": "default"
+                        }
+                    },
+                    "14": {
+                        "link": {
+                            "name": "Physical.frag",
+                            "file": "default"
+                        }
+                    },
+                    "17": {
+                        "link": {
+                            "name": "Skinning.vert",
+                            "file": "default"
+                        }
+                    },
+                    "18": {
+                        "link": {
+                            "name": "Sky.frag",
+                            "file": "default"
+                        }
+                    },
+                    "19": {
+                        "link": {
+                            "name": "Sky.vert",
+                            "file": "default"
+                        }
+                    },
+                    "20": {
+                        "link": {
+                            "name": "Text.frag",
+                            "file": "default"
+                        }
+                    },
+                    "22": {
+                        "link": {
+                            "name": "Text.vert",
+                            "file": "default"
+                        }
+                    },
+                    "23": {
+                        "link": {
+                            "name": "TileFeedback.frag",
+                            "file": "default"
+                        }
+                    },
+                    "24": {
+                        "link": {
+                            "name": "Particle.frag",
+                            "file": "default"
+                        }
+                    }
+                },
+                pipelines: {
+                    "2": {
+                        "link": {
+                            "name": "Depth",
+                            "file": "default"
+                        }
+                    },
+                    "4": {
+                        "link": {
+                            "name": "DistanceFieldVector",
+                            "file": "default"
+                        }
+                    },
+                    "7": {
+                        "link": {
+                            "name": "Flat Opaque",
+                            "file": "default"
+                        }
+                    },
+                    "8": {
+                        "link": {
+                            "name": "Flat Opaque Textured",
+                            "file": "default"
+                        }
+                    },
+                    "10": {
+                        "link": {
+                            "name": "MeshVisualizer",
+                            "file": "default"
+                        }
+                    },
+                    "12": {
+                        "link": {
+                            "name": "Phong Opaque",
+                            "file": "default"
+                        }
+                    },
+                    "13": {
+                        "link": {
+                            "name": "Phong Opaque Textured",
+                            "file": "default"
+                        }
+                    },
+                    "15": {
+                        "link": {
+                            "name": "Physical Opaque",
+                            "file": "default"
+                        }
+                    },
+                    "16": {
+                        "link": {
+                            "name": "Physical Opaque Textured",
+                            "file": "default"
+                        }
+                    },
+                    "21": {
+                        "link": {
+                            "name": "Text",
+                            "file": "default"
+                        }
+                    },
+                    "25": {
+                        "link": {
+                            "name": "Foliage",
+                            "file": "default"
+                        }
+                    },
+                    "26": {
+                        "link": {
+                            "name": "Particle",
+                            "file": "default"
+                        }
+                    },
+                    "27": {
+                        "link": {
+                            "name": "Sky",
+                            "file": "default"
+                        }
+                    }
+                }
+            };
+            templateMinID = 27;
+        }
+
+        let curID = reservedIDs + templateMinID + 1;
+
         if(mark === 0 && models.length === 0) {
             const cwd = process.cwd();
             const defaultGLTFPath = path.join(cwd, 'model.gltf');
@@ -824,7 +964,8 @@ async function main() {
 
             // generate project for model
             const actualRatio = ratio === null ? defaultSimplificationRatio : ratio;
-            const projectPath = await loadGLTF(fullModelPath, modelFileName, outputName, outDir, actualRatio);
+            let projectPath;
+            [projectPath, curID] = await loadGLTF(fullModelPath, modelFileName, outputName, outDir, actualRatio, curID, templateProject);
 
             if(!projectsOnly) {
                 // compile model
