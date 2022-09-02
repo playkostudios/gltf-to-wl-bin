@@ -1,5 +1,6 @@
 const { spawn } = require('node:child_process');
 const gltfPipeline = require('gltf-pipeline');
+const stream = require('node:stream');
 const fs = require('fs-extra');
 const os = require('node:os');
 const path = require('path');
@@ -99,7 +100,7 @@ class Node {
     }
 }
 
-function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, json) {
+function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, version, json) {
     console.info(`Generating project from model file "${origFilePath}" with ${ratio === 1 ? 'no' : ratio} mesh simplification...`);
 
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
@@ -126,7 +127,7 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
         settings: {
             project: {
                 name: wlProjectName,
-                version: [0, 8, 10],
+                version,
                 packageForStreaming: true
             }
         },
@@ -301,18 +302,18 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
     return [projectPath, id];
 }
 
-async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject) {
+async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, version) {
     if(!fs.existsSync(path))
         throw new UserError(`File not found: "${path}".`);
 
     const lowPath = path.toLowerCase();
     if(lowPath.endsWith('.gltf'))
-        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, fs.readJsonSync(path));
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, version, fs.readJsonSync(path));
     else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
-        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, results.gltf);
+        return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, version, results.gltf);
     }
     else
         throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
@@ -354,6 +355,7 @@ Available arguments:
 - --projects-only: Only generate project files instead of converting to bin files.
 - --template-project-path: A path to an existing project file. The default shader, texture, material, etc... IDs from this project will be used for the generated projects.
 - --reserve-ids: The minimum IDs to use for the generated project file. Even if not set, resource IDs for generated projects will never intersect. If a template project is given, then the maximum resource ID will be added to this value. If this value is not set, you may need to re-generate the bin files after adding a new resource or object to the scene of the template project.
+- --version <major> <minor> <patch>: The version number to use for the generated project files. If none is supplied, then the current version is detected by running "WonderlandEditor --help".
 
 Available arguments after first mark (--):
 - <model_file> or <simplification_target>:<model_file>:
@@ -384,15 +386,17 @@ function removeTmpDir() {
 
 let childProc = null;
 
-function compileModel(projectPath, workingDir, wonderlandPath, wonderlandArgs) {
+function spawnWLE(workingDir, wonderlandPath, wonderlandArgs, pipeStdout = null, pipeStderr = null) {
+    if(pipeStdout === null)
+        pipeStdout = process.stdout;
+
+    if(pipeStderr === null)
+        pipeStderr = process.stderr;
+
+    console.info('Spawning process:', wonderlandPath, ...wonderlandArgs);
+
     return new Promise((resolve, reject) => {
-        console.info('Compiling to bin model...');
-
-        const args = ['--project', projectPath, '--package', '--windowless', ...wonderlandArgs];
-
-        console.info('Spawning process:', wonderlandPath, ...args);
-
-        childProc = spawn(wonderlandPath, args, {
+        childProc = spawn(wonderlandPath, wonderlandArgs, {
             cwd: workingDir,
             windowsHide: true
         });
@@ -408,7 +412,7 @@ function compileModel(projectPath, workingDir, wonderlandPath, wonderlandArgs) {
             if(code === 0)
                 resolve();
             else
-                reject(new UserError(`bin compilation failed; Wonderland Engine editor exited with code ${code} and signal ${signal}.`));
+                reject(new UserError(`Wonderland Engine editor exited with code ${code} and signal ${signal}.`));
         });
 
         childProc.on('error', (err) => {
@@ -421,9 +425,91 @@ function compileModel(projectPath, workingDir, wonderlandPath, wonderlandArgs) {
             reject(err);
         });
 
-        childProc.stderr.pipe(process.stdout);
-        childProc.stderr.pipe(process.stderr);
+        childProc.stdout.pipe(pipeStdout);
+        childProc.stderr.pipe(pipeStderr);
     });
+}
+
+class StringStream extends stream.Writable {
+    constructor(opts) {
+        super(opts);
+
+        this.strParts = [];
+    }
+
+    _write(chunk, _enc, next) {
+        this.strParts.push(chunk.toString());
+        next();
+    }
+
+    toString() {
+        if(this.strParts.length === 0)
+            return '';
+
+        if(this.strParts.length > 1)
+            this.strParts.splice(0, this.strParts.length, this.strParts.join(''));
+
+        return this.strParts[0];
+    }
+}
+
+async function detectVersion(wonderlandPath) {
+    // TODO replace this with a --version query if it ever gets implemented in
+    // the editor CLI
+
+    console.info('Detecting Wonderland Engine version...');
+
+    try {
+        let outStr;
+        {
+            const outStream = new StringStream();
+
+            await spawnWLE(
+                process.cwd(),
+                wonderlandPath,
+                ['--help'],
+                outStream
+            );
+
+            outStr = outStream.toString();
+        }
+
+        const versionRegex = /Wonderland Engine ([0-9]+)\.([0-9]+)\.([0-9]+)/g;
+        const matches = versionRegex.exec(outStr);
+
+        if(matches.length !== 4)
+            throw new UserError('Could not find version string in help command.');
+
+        const version = [Number(matches[1]), Number(matches[2]), Number(matches[3])];
+
+        console.info(`Detected version ${version.join('.')}.`);
+
+        return version;
+    }
+    catch(e) {
+        if(e instanceof UserError)
+            throw new UserError(`Failed to detect version; ${e.message}`);
+        else
+            throw e;
+    }
+}
+
+async function compileModel(projectPath, workingDir, wonderlandPath, wonderlandArgs) {
+    console.info('Compiling to bin model...');
+
+    try {
+        await spawnWLE(
+            workingDir,
+            wonderlandPath,
+            ['--project', projectPath, '--package', '--windowless', ...wonderlandArgs]
+        );
+    }
+    catch(e) {
+        if(e instanceof UserError)
+            throw new UserError(`bin compilation failed; ${e.message}`);
+        else
+            throw e;
+    }
 }
 
 function addInputModel(models, modelPath, ratio) {
@@ -551,6 +637,7 @@ async function main() {
         let templateProject = null;
         let templateMinID = 0;
         let reservedIDs = null;
+        let version = null;
 
         for(let i = 2; i < process.argv.length; i++) {
             const arg = process.argv[i];
@@ -626,6 +713,20 @@ async function main() {
 
                         if(isNaN(reservedIDs) || reservedIDs < 0)
                             throw new UsageError('Reserved IDs count must be a valid positive number.');
+
+                        break;
+                    case '--version':
+                        if(i + 3 >= process.argv.length)
+                            throw new UsageError(`Expected a 3 numbers after --version argument, found ${process.argv.length - i - 1}.`);
+
+                        const major = Number(process.argv[++i]);
+                        const minor = Number(process.argv[++i]);
+                        const patch = Number(process.argv[++i]);
+
+                        if(isNaN(major) || major < 0 || isNaN(minor) || minor < 0 || isNaN(patch) || patch < 0)
+                            throw new UsageError('Version numbers must be valid positive numbers.');
+
+                        version = [major, minor, patch];
 
                         break;
                     case '--help':
@@ -946,6 +1047,11 @@ async function main() {
         if(models.length === 0)
             throw new UserError('No model files specified.');
 
+        if(version === null) {
+            // no version provided. auto-detected
+            version = await detectVersion(wonderlandPath);
+        }
+
         for(const {modelPath, modelFileName, ratio, outputName} of models) {
             let outDir;
             if(projectsOnly)
@@ -965,7 +1071,7 @@ async function main() {
             // generate project for model
             const actualRatio = ratio === null ? defaultSimplificationRatio : ratio;
             let projectPath;
-            [projectPath, curID] = await loadGLTF(fullModelPath, modelFileName, outputName, outDir, actualRatio, curID, templateProject);
+            [projectPath, curID] = await loadGLTF(fullModelPath, modelFileName, outputName, outDir, actualRatio, curID, templateProject, version);
 
             if(!projectsOnly) {
                 // compile model
