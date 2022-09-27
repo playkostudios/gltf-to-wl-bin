@@ -134,12 +134,63 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
         files: [symlinkRelPath]
     }
 
+    // generate images list
+    let imgDefaultNum = 0;
+    if('images' in json) {
+        for(const image of json.images) {
+            let name = image.name;
+
+            if(!name) {
+                name = `image_${imgDefaultNum}`;
+                imgDefaultNum++;
+            }
+
+            images[id.toString()] = {
+                link: {
+                    name,
+                    file: symlinkRelPath
+                }
+            }
+
+            id++;
+        }
+    }
+
+    // generate textures list
+    const texSources = new Set();
+    let texCount = 0;
+    if('textures' in json) {
+        for(const texture of json.textures) {
+            if(!texSources.has(texture.source)) {
+                textures[id.toString()] = {
+                    link: {
+                        name: `texture_${texCount}`,
+                        file: symlinkRelPath
+                    }
+                }
+
+                id++;
+                texSources.add(texture.source);
+            }
+
+            texCount++;
+        }
+    }
+
     // generate materials list
+    let matDefaultNum = 0;
     if('materials' in json) {
         for(const material of json.materials) {
+            let name = material.name;
+
+            if(!name) {
+                name = `material_${matDefaultNum}`;
+                matDefaultNum++;
+            }
+
             materials[id.toString()] = {
                 link: {
-                    name: material.name,
+                    name,
                     file: symlinkRelPath
                 }
             }
@@ -149,11 +200,19 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
     }
 
     // generate meshes list
+    let meshDefaultNum = 0;
     if('meshes' in json) {
         for(const mesh of json.meshes) {
+            let name = mesh.name;
+
+            if(!name) {
+                name = `mesh_${meshDefaultNum}`;
+                meshDefaultNum++;
+            }
+
             meshObj = {
                 link: {
-                    name: mesh.name,
+                    name,
                     file: symlinkRelPath
                 }
             };
@@ -170,16 +229,24 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
     }
 
     // generate skins
+    let skinDefaultNum = 0;
     const skinsMap = new Map();
     const skinsJoints = new Map();
     const jointIdxs = new Map();
     if('skins' in json) {
         let skinID = 0;
         for(const skin of json.skins) {
+            let name = skin.name;
+
+            if(!name) {
+                name = `skin_${skinDefaultNum}`;
+                skinDefaultNum++;
+            }
+
             const jointsArray = [];
             skins[id.toString()] = {
                 link: {
-                    name: skin.name,
+                    name,
                     file: symlinkRelPath
                 },
                 joints: jointsArray
@@ -254,39 +321,21 @@ function generateProject(origFilePath, symlinkRelPath, outputName, outDir, ratio
     }
 
     // generate animations list
+    let animDefaultNum = 0;
     if('animations' in json) {
         for(const animation of json.animations) {
+            // XXX not sure if a default name is necessary for animations, but
+            // just in case
+            let name = animation.name;
+
+            if(!name) {
+                name = `animation_${animDefaultNum}`;
+                animDefaultNum++;
+            }
+
             animations[id.toString()] = {
                 link: {
-                    name: animation.name,
-                    file: symlinkRelPath
-                }
-            }
-
-            id++;
-        }
-    }
-
-    // generate images list
-    if('images' in json) {
-        for(const image of json.images) {
-            images[id.toString()] = {
-                link: {
-                    name: image.name,
-                    file: symlinkRelPath
-                }
-            }
-
-            id++;
-        }
-    }
-
-    // generate textures list
-    if('textures' in json) {
-        for(const texture of json.textures) {
-            textures[id.toString()] = {
-                link: {
-                    name: `texture_${texture.source}`,
+                    name,
                     file: symlinkRelPath
                 }
             }
@@ -356,6 +405,7 @@ Available arguments:
 - --template-project-path: A path to an existing project file. The default shader, texture, material, etc... IDs from this project will be used for the generated projects.
 - --reserve-ids: The minimum IDs to use for the generated project file. Even if not set, resource IDs for generated projects will never intersect. If a template project is given, then the maximum resource ID will be added to this value. If this value is not set, you may need to re-generate the bin files after adding a new resource or object to the scene of the template project.
 - --version <major> <minor> <patch>: The version number to use for the generated project files. If none is supplied, then the current version is detected by running "WonderlandEditor --help".
+- --use-symlinks: If passed, then symlinks will be used when building models. Enabled on Linux by default, but not on Windows, since Windows users can't create symlinks without changing group policies.
 
 Available arguments after first mark (--):
 - <model_file> or <simplification_target>:<model_file>:
@@ -627,6 +677,7 @@ function parseTemplateProject(projectPath) {
 async function main() {
     try {
         // parse arguments
+        const onWindows = process.platform === 'win32';
         let models = [];
         let defaultSimplificationRatio = null;
         let outputFolder = null;
@@ -638,6 +689,7 @@ async function main() {
         let templateMinID = 0;
         let reservedIDs = null;
         let version = null;
+        let useSymlinks = !onWindows;
 
         for(let i = 2; i < process.argv.length; i++) {
             const arg = process.argv[i];
@@ -729,6 +781,9 @@ async function main() {
                         version = [major, minor, patch];
 
                         break;
+                    case '--use-symlinks':
+                        useSymlinks = true;
+                        break;
                     case '--help':
                     case '-h':
                         printHelp();
@@ -786,7 +841,7 @@ async function main() {
             outputFolder = process.cwd();
 
         if(wonderlandPath === null) {
-            if(process.platform === 'win32')
+            if(onWindows)
                 wonderlandPath = defaultWindowsWLPath;
             else
                 wonderlandPath = defaultWLBin;
@@ -835,22 +890,8 @@ async function main() {
                         }
                     },
                 },
-                textures: {
-                    "t0": {
-                        "link": {
-                            "name": "DefaultTexture",
-                            "file": "default"
-                        }
-                    }
-                },
-                images: {
-                    "f0": {
-                        "link": {
-                            "name": "DefaultImage",
-                            "file": "default"
-                        }
-                    }
-                },
+                textures: {},
+                images: {},
                 materials: {
                     "DefaultFontMaterial": {
                         "link": {
@@ -862,83 +903,89 @@ async function main() {
                 shaders: {
                     "1": {
                         "link": {
+                            "name": "Background.frag",
+                            "file": "default"
+                        }
+                    },
+                    "2": {
+                        "link": {
                             "name": "Depth.frag",
                             "file": "default"
                         }
                     },
-                    "3": {
+                    "4": {
                         "link": {
                             "name": "DistanceFieldVector.frag",
                             "file": "default"
                         }
                     },
-                    "5": {
+                    "6": {
                         "link": {
                             "name": "Dynamic.vert",
                             "file": "default"
                         }
                     },
-                    "6": {
+                    "7": {
                         "link": {
                             "name": "Flat.frag",
                             "file": "default"
                         }
                     },
-                    "9": {
+                    "10": {
                         "link": {
-                            "name": "MeshVisualizer.frag",
+                            "name": "FullScreenTriangle.vert",
                             "file": "default"
                         }
                     },
                     "11": {
                         "link": {
+                            "name": "MeshVisualizer.frag",
+                            "file": "default"
+                        }
+                    },
+                    "13": {
+                        "link": {
                             "name": "Phong.frag",
                             "file": "default"
                         }
                     },
-                    "14": {
+                    "16": {
                         "link": {
                             "name": "Physical.frag",
                             "file": "default"
                         }
                     },
-                    "17": {
+                    "19": {
                         "link": {
                             "name": "Skinning.vert",
                             "file": "default"
                         }
                     },
-                    "18": {
+                    "20": {
                         "link": {
                             "name": "Sky.frag",
                             "file": "default"
                         }
                     },
-                    "19": {
-                        "link": {
-                            "name": "Sky.vert",
-                            "file": "default"
-                        }
-                    },
-                    "20": {
+                    "21": {
                         "link": {
                             "name": "Text.frag",
                             "file": "default"
                         }
                     },
-                    "22": {
+                    "23": {
                         "link": {
                             "name": "Text.vert",
                             "file": "default"
                         }
                     },
-                    "23": {
+                    "24": {
                         "link": {
                             "name": "TileFeedback.frag",
                             "file": "default"
                         }
                     },
-                    "24": {
+                    "25": {
                         "link": {
                             "name": "Particle.frag",
                             "file": "default"
@@ -946,79 +993,79 @@ async function main() {
                     }
                 },
                 pipelines: {
-                    "2": {
+                    "3": {
                         "link": {
                             "name": "Depth",
                             "file": "default"
                         }
                     },
-                    "4": {
+                    "5": {
                         "link": {
                             "name": "DistanceFieldVector",
                             "file": "default"
                         }
                     },
-                    "7": {
+                    "8": {
                         "link": {
                             "name": "Flat Opaque",
                             "file": "default"
                         }
                     },
-                    "8": {
+                    "9": {
                         "link": {
                             "name": "Flat Opaque Textured",
                             "file": "default"
                         }
                     },
-                    "10": {
+                    "12": {
                         "link": {
                             "name": "MeshVisualizer",
                             "file": "default"
                         }
                     },
-                    "12": {
+                    "14": {
                         "link": {
                             "name": "Phong Opaque",
                             "file": "default"
                         }
                     },
-                    "13": {
+                    "15": {
                         "link": {
                             "name": "Phong Opaque Textured",
                             "file": "default"
                         }
                     },
-                    "15": {
+                    "17": {
                         "link": {
                             "name": "Physical Opaque",
                             "file": "default"
                         }
                     },
-                    "16": {
+                    "18": {
                         "link": {
                             "name": "Physical Opaque Textured",
                             "file": "default"
                         }
                     },
-                    "21": {
+                    "22": {
                         "link": {
                             "name": "Text",
                             "file": "default"
                         }
                     },
-                    "25": {
+                    "26": {
                         "link": {
                             "name": "Foliage",
                             "file": "default"
                         }
                     },
-                    "26": {
+                    "27": {
                         "link": {
                             "name": "Particle",
                             "file": "default"
                         }
                     },
-                    "27": {
+                    "28": {
                         "link": {
                             "name": "Sky",
                             "file": "default"
@@ -1026,7 +1073,7 @@ async function main() {
                     }
                 }
             };
-            templateMinID = 27;
+            templateMinID = 28;
         }
 
         let curID = reservedIDs + templateMinID + 1;
@@ -1066,7 +1113,11 @@ async function main() {
             // engine doesn't seem to support absolute paths anymore
             const fullModelPath = path.resolve(modelPath);
             const symlinkPath = path.join(outDir, modelFileName);
-            fs.symlinkSync(fullModelPath, symlinkPath);
+            
+            if(useSymlinks)
+                fs.symlinkSync(fullModelPath, symlinkPath);
+            else
+                fs.copySync(fullModelPath, symlinkPath);
 
             // generate project for model
             const actualRatio = ratio === null ? defaultSimplificationRatio : ratio;
