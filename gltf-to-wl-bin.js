@@ -361,7 +361,7 @@ async function loadGLTF(path, symlinkRelPath, outputName, outDir, ratio, curID, 
     else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
-        const results = await gltfPipeline.glbToGltf(fs.readFileSync(path));
+        const results = await gltfPipeline.glbToGltf(fs.readFileSync(path), { keepUnusedElements: true });
         return generateProject(path, symlinkRelPath, outputName, outDir, ratio, curID, templateProject, version, results.gltf);
     }
     else
@@ -1113,7 +1113,7 @@ async function main() {
             // engine doesn't seem to support absolute paths anymore
             const fullModelPath = path.resolve(modelPath);
             const symlinkPath = path.join(outDir, modelFileName);
-            
+
             if(useSymlinks)
                 fs.symlinkSync(fullModelPath, symlinkPath);
             else
