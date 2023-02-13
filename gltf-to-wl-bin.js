@@ -582,9 +582,6 @@ class StringStream extends stream.Writable {
 }
 
 async function detectVersion(wonderlandPath) {
-    // TODO replace this with a --version query if it ever gets implemented in
-    // the editor CLI
-
     console.info('Detecting Wonderland Engine version...');
 
     try {
@@ -595,7 +592,7 @@ async function detectVersion(wonderlandPath) {
             await spawnWLE(
                 process.cwd(),
                 wonderlandPath,
-                ['--help'],
+                ['--version'],
                 outStream
             );
 
@@ -605,7 +602,7 @@ async function detectVersion(wonderlandPath) {
         const versionRegex = /Wonderland Engine ([0-9]+)\.([0-9]+)\.([0-9]+)/g;
         const matches = versionRegex.exec(outStr);
 
-        if (matches.length !== 4) {
+        if (matches === null || matches.length !== 4) {
             throw new UserError('Could not find version string in help command.');
         }
 
