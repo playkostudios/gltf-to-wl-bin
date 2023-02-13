@@ -589,17 +589,26 @@ async function detectVersion(wonderlandPath) {
         {
             const outStream = new StringStream();
 
-            await spawnWLE(
-                process.cwd(),
-                wonderlandPath,
-                ['--version'],
-                outStream
-            );
+            try {
+                await spawnWLE(
+                    process.cwd(),
+                    wonderlandPath,
+                    ['--version'],
+                    outStream
+                );
+            } catch(_) {
+                await spawnWLE(
+                    process.cwd(),
+                    wonderlandPath,
+                    ['--help'],
+                    outStream
+                );
+            }
 
             outStr = outStream.toString();
         }
 
-        const versionRegex = /Wonderland Engine ([0-9]+)\.([0-9]+)\.([0-9]+)/g;
+        const versionRegex = /Wonderland (?:Engine|Editor version) ([0-9]+)\.([0-9]+)\.([0-9]+)/g;
         const matches = versionRegex.exec(outStr);
 
         if (matches === null || matches.length !== 4) {
