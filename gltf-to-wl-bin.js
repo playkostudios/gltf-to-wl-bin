@@ -106,13 +106,13 @@ class Node {
     }
 }
 
-function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, json) {
+function legacyGenerateProject(origFilePath, linkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, json) {
     console.info(`Generating project from model file "${origFilePath}" with ${ratio === 1 ? 'no' : ratio} mesh simplification...`);
 
     // fs.writeFileSync('gltf-dump.json', JSON.stringify(json, null, 4));
 
     const project = generateBaseProject(templateProject, version, keepOtherResources);
-    project.files.push(symlinkRelPath);
+    project.files.push(linkRelPath);
     let id = curID;
 
     // generate images list
@@ -129,7 +129,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
             project.images[id.toString()] = {
                 link: {
                     name,
-                    file: symlinkRelPath
+                    file: linkRelPath
                 }
             }
 
@@ -146,7 +146,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
                 project.textures[id.toString()] = {
                     link: {
                         name: `texture_${texCount}`,
-                        file: symlinkRelPath
+                        file: linkRelPath
                     }
                 }
 
@@ -172,7 +172,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
             project.materials[id.toString()] = {
                 link: {
                     name,
-                    file: symlinkRelPath
+                    file: linkRelPath
                 }
             }
 
@@ -194,7 +194,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
             meshObj = {
                 link: {
                     name,
-                    file: symlinkRelPath
+                    file: linkRelPath
                 }
             };
 
@@ -228,7 +228,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
             project.skins[id.toString()] = {
                 link: {
                     name,
-                    file: symlinkRelPath
+                    file: linkRelPath
                 },
                 joints: jointsArray
             };
@@ -302,7 +302,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
                 skinsJoints.get(node.skin).push(id.toString());
             }
 
-            project.objects[id.toString()] = node.toJson(symlinkRelPath);
+            project.objects[id.toString()] = node.toJson(linkRelPath);
             id++;
         });
     }
@@ -323,7 +323,7 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
             project.animations[id.toString()] = {
                 link: {
                     name,
-                    file: symlinkRelPath
+                    file: linkRelPath
                 }
             }
 
@@ -336,19 +336,19 @@ function legacyGenerateProject(origFilePath, symlinkRelPath, outputName, tempPro
     return [projectPath, id];
 }
 
-async function legacyLoadGLTF(path, symlinkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources) {
+async function legacyLoadGLTF(path, linkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources) {
     if (!fs.existsSync(path)) {
         throw new UserError(`File not found: "${path}".`);
     }
 
     const lowPath = path.toLowerCase();
     if (lowPath.endsWith('.gltf')) {
-        return legacyGenerateProject(path, symlinkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, fs.readJsonSync(path));
+        return legacyGenerateProject(path, linkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, fs.readJsonSync(path));
     } else if(lowPath.endsWith('.glb')) {
         console.info(`Temporarily converting GLB model "${path}" to GLTF...`);
 
         const results = await gltfPipeline.glbToGltf(fs.readFileSync(path), { keepUnusedElements: true });
-        return legacyGenerateProject(path, symlinkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, results.gltf);
+        return legacyGenerateProject(path, linkRelPath, outputName, tempProjDir, ratio, curID, templateProject, version, keepOtherResources, results.gltf);
     } else {
         throw new Error(`Unexpected file extension in "${lowPath}". Extensions should be filtered by now.`);
     }
@@ -419,7 +419,7 @@ function generateProject(templateProject, version, keepOtherResources) {
     return generateBaseProject(templateProject, version, keepOtherResources);
 }
 
-async function compileModel(symlinkPath, actualRatio, outputName, outputFolder, tempProjDir, neoProject, projectsOnly, wonderlandPath, wonderlandArgs) {
+async function compileModel(linkPath, actualRatio, outputName, outputFolder, tempProjDir, neoProject, projectsOnly, wonderlandPath, wonderlandArgs) {
     // save project file to temp folder
     const projectPath = writeProject(neoProject, outputName, tempProjDir);
 
@@ -431,7 +431,7 @@ async function compileModel(symlinkPath, actualRatio, outputName, outputFolder, 
 
     if (!projectsOnly) {
         // import and compile model to bin
-        await importPackageProject(projectPath, tempProjDir, wonderlandPath, wonderlandArgs, symlinkPath);
+        await importPackageProject(projectPath, tempProjDir, wonderlandPath, wonderlandArgs, linkPath);
 
         // finalize compiled bin
         finalizeBin(outputName, outputFolder, tempProjDir);
@@ -475,7 +475,9 @@ Available arguments:
 - --template-project-path: A path to an existing project file. The default shader, texture, material, etc... IDs from this project will be used for the generated projects.
 - --reserve-ids: The minimum IDs to use for the generated project file. Even if not set, resource IDs for generated projects will never intersect. If a template project is given, then the maximum resource ID will be added to this value. If this value is not set, you may need to re-generate the bin files after adding a new resource or object to the scene of the template project.
 - --version <major> <minor> <patch>: The version number to use for the generated project files. If none is supplied, then the current version is detected by running "WonderlandEditor --help".
-- --use-symlinks: If passed, then symlinks will be used when building models. Enabled on Linux by default, but not on Windows, since Windows users can't create symlinks without changing group policies.
+- --use-links: If passed, then file links will be used when building models to save storage space. Note that hard links will be used instead of symbolic links on Windows, since Windows users can't create symbolic links without changing group policies. Enabled by default.
+- --use-symlinks: Equivalent to "--use-links". Kept for backwards-compatibility.
+- --no-links: Opposite of "--use-links".
 - --legacy-import: If passed, then streaming template project files will be created manually. Enabled by default for Wonderland Engine versions 0.9.4 and above. Note that models with ".legacy" before their file extension will be forced to use the legacy importer.
 - --keep-other-resources: If passed, then project resources other than pipelines and shaders are also kept. Disabled by default.
 
@@ -806,7 +808,7 @@ async function main() {
         let templateMinID = 0;
         let reservedIDs = null;
         let version = null;
-        let useSymlinks = !onWindows;
+        let useLinks = true;
         let wantLegacyImport = false;
         let keepOtherResources = false;
 
@@ -916,8 +918,12 @@ async function main() {
                         version = [major, minor, patch];
 
                         break;
+                    case '--use-links':
                     case '--use-symlinks':
-                        useSymlinks = true;
+                        useLinks = true;
+                        break;
+                    case '--no-links':
+                        useLinks = false;
                         break;
                     case '--legacy-import':
                         wantLegacyImport = true;
@@ -1283,22 +1289,34 @@ async function main() {
                 tempProjDir = tmpDir;
             }
 
-            // make symlink in temporary folder for model file; wonderland
-            // engine doesn't seem to support absolute paths anymore
+            // make link in temporary folder for model file; wonderland engine
+            // doesn't seem to support absolute paths anymore
             const fullModelPath = path.resolve(modelPath);
-            const symlinkPath = path.join(tempProjDir, modelFileName);
+            const linkPath = path.join(tempProjDir, modelFileName);
 
-            if (useSymlinks) {
-                fs.symlinkSync(fullModelPath, symlinkPath);
-            } else {
-                fs.copySync(fullModelPath, symlinkPath);
+            if (useLinks) {
+                try {
+                    if (onWindows) {
+                        fs.linkSync(fullModelPath, linkPath);
+                    } else {
+                        fs.symlinkSync(fullModelPath, linkPath, 'file');
+                    }
+                } catch(err) {
+                    console.error(err);
+                    console.warn(`Failed to create ${onWindows ? 'hard' : 'symbolic'} link. Falling back to file copying`);
+                    useLinks = false;
+                }
+            }
+
+            if (!useLinks) {
+                fs.copySync(fullModelPath, linkPath);
             }
 
             // compile model
             if (legacyImport) {
                 await legacyCompileModel(fullModelPath, modelFileName, actualRatio, outputName, outputFolder, tempProjDir, projectsOnly, curID, templateProject, version, keepOtherResources, wonderlandPath, wonderlandArgs);
             } else {
-                await compileModel(symlinkPath, actualRatio, outputName, outputFolder, tempProjDir, neoProject, projectsOnly, wonderlandPath, wonderlandArgs);
+                await compileModel(linkPath, actualRatio, outputName, outputFolder, tempProjDir, neoProject, projectsOnly, wonderlandPath, wonderlandArgs);
             }
         }
     } catch(e) {
