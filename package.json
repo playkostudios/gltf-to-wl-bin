@@ -14,7 +14,7 @@
       "email": "rafael@playko.com"
     }
   ],
-  "license": "UNLICENSED",
+  "license": "MIT",
   "url": "https://github.com/playkostudios/gltf-to-wl-bin",
   "bugs": {
     "url": "https://github.com/playkostudios/gltf-to-wl-bin/issues",
