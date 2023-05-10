@@ -793,6 +793,26 @@ function parseTemplateProject(projectPath) {
     }, maxID];
 }
 
+function linkOrCopy(onWindows, useLinks, src, dst) {
+    if (useLinks) {
+        try {
+            if (onWindows) {
+                fs.linkSync(src, dst);
+            } else {
+                fs.symlinkSync(src, dst, 'file');
+            }
+        } catch(err) {
+            console.error(err);
+            console.warn(`Failed to create ${onWindows ? 'hard' : 'symbolic'} link. Falling back to file copying`);
+            useLinks = false;
+        }
+    }
+
+    if (!useLinks) {
+        fs.copySync(src, dst);
+    }
+}
+
 async function main() {
     try {
         // parse arguments
@@ -1208,17 +1228,29 @@ async function main() {
                     },
                     "26": {
                         "link": {
-                            "name": "Foliage",
+                            "name": "Phong Normalmapped",
                             "file": "default"
                         }
                     },
                     "27": {
                         "link": {
-                            "name": "Particle",
+                            "name": "Phong Lightmapped",
                             "file": "default"
                         }
                     },
                     "28": {
+                        "link": {
+                            "name": "Foliage",
+                            "file": "default"
+                        }
+                    },
+                    "29": {
+                        "link": {
+                            "name": "Particle",
+                            "file": "default"
+                        }
+                    },
+                    "30": {
                         "link": {
                             "name": "Sky",
                             "file": "default"
@@ -1226,7 +1258,7 @@ async function main() {
                     }
                 }
             };
-            templateMinID = 28;
+            templateMinID = 30;
         }
 
         let curID = reservedIDs + templateMinID + 1;
@@ -1294,23 +1326,12 @@ async function main() {
             const fullModelPath = path.resolve(modelPath);
             const linkPath = path.join(tempProjDir, modelFileName);
 
-            if (useLinks) {
-                try {
-                    if (onWindows) {
-                        fs.linkSync(fullModelPath, linkPath);
-                    } else {
-                        fs.symlinkSync(fullModelPath, linkPath, 'file');
-                    }
-                } catch(err) {
-                    console.error(err);
-                    console.warn(`Failed to create ${onWindows ? 'hard' : 'symbolic'} link. Falling back to file copying`);
-                    useLinks = false;
-                }
-            }
+            linkOrCopy(onWindows, useLinks, fullModelPath, linkPath);
 
-            if (!useLinks) {
-                fs.copySync(fullModelPath, linkPath);
-            }
+            // link/copy package.json for dummy project
+            const dummyPackageSrc = path.join(__dirname, 'dummy-package.json');
+            const dummyPackageDst = path.join(tempProjDir, 'package.json');
+            linkOrCopy(onWindows, useLinks, dummyPackageSrc, dummyPackageDst);
 
             // compile model
             if (legacyImport) {
