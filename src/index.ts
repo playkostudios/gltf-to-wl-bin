@@ -225,7 +225,7 @@ async function importPackageProject(projectPath: string, workingDir: string, won
         await spawnWLE(
             workingDir,
             wonderlandPath,
-            ['--import', modelPath, '--project', projectPath, '--package', /*'--windowless',*/ ...wonderlandArgs]
+            ['--import', modelPath, '--project', projectPath, '--package', '--windowless', ...wonderlandArgs]
         );
     } catch(e) {
         if (e instanceof UserError) {
