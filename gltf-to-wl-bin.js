@@ -385,6 +385,9 @@ function generateBaseProject(templateProject, version, keepOtherResources) {
     const images = keepOtherResources ? { ...templateProject.images } : {};
     const materials = keepOtherResources ? { ...templateProject.materials } : {};
 
+    const fallbackVersion = [1, 0, 0];
+    if (version[0] === 0) fallbackVersion = version;
+
     return {
         objects: {},
         meshes,
@@ -398,7 +401,7 @@ function generateBaseProject(templateProject, version, keepOtherResources) {
         settings: {
             project: {
                 name: wlProjectName,
-                version,
+                version: templateProject?.settings?.project?.version ?? fallbackVersion,
                 packageForStreaming: true
             }
         },
@@ -1287,6 +1290,10 @@ async function main() {
 
             // check if legacy import must be used (must be used before 0.9.4)
             if (version[0] === 0 && (version[1] < 9 || (version[1] === 9 && version[2] < 4))) {
+                wantLegacyImport = true;
+            } else {
+                // TODO remove this once --import works again
+                console.warn('WARNING - legacy import force-enabled; newer editor "--import" argument is often broken and generates empty .bin files');
                 wantLegacyImport = true;
             }
         }
