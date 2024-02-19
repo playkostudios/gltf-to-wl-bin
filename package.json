@@ -4,6 +4,14 @@
   "description": "Convert GLTF/GLB files to Wonderland Engine bin files",
   "main": "gltf-to-wl-bin.js",
   "bin": "gltf-to-wl-bin",
+  "scripts": {
+    "build": "esbuild --bundle ./src/index.ts --outfile=./gltf-to-wl-bin.js --platform=node"
+  },
+  "files": [
+    "dummy-package.json",
+    "gltf-to-wl-bin",
+    "gltf-to-wl-bin.js"
+  ],
   "contributors": [
     {
       "name": "Playko",
@@ -21,7 +29,11 @@
     "email": "rafael@playko.com"
   },
   "dependencies": {
+    "@playkostudios/jsonc-ast": "^0.1.5",
     "fs-extra": "^10.1.0",
     "gltf-pipeline": "^3.0.5"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.1"
   }
 }

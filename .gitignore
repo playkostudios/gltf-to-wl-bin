@@ -8,3 +8,6 @@ cache
 models/
 models-output/
 gltf-to-wl-bin-*.tgz
+/model.glb
+/model.bin
+/gltf-to-wl-bin.js
